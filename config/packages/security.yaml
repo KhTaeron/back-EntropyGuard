@@ -10,18 +10,17 @@ security:
                 class: App\Entity\User
                 property: email
     firewalls:
-        dev:
-            pattern: ^/(_(profiler|wdt)|css|images|js)/
-            security: false
         login:
             pattern: ^/api/login
             stateless: true
             json_login:
-                check_path: /api/login
+                check_path: /api/login_check
                 username_path: email
-                password_path: password
                 success_handler: lexik_jwt_authentication.handler.authentication_success
                 failure_handler: lexik_jwt_authentication.handler.authentication_failure
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
         api:
             pattern: ^/api
             stateless: true
