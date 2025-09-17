@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use App\Service\PasswordStrengthService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\{JsonResponse, Request};
@@ -18,7 +19,8 @@ class AuthController extends AbstractController
         Request $request,
         EntityManagerInterface $em,
         UserPasswordHasherInterface $hasher,
-        ValidatorInterface $validator
+        ValidatorInterface $validator,
+        PasswordStrengthService $pwdStrength
     ): JsonResponse {
         $data = json_decode($request->getContent(), true) ?? [];
 
@@ -50,19 +52,12 @@ class AuthController extends AbstractController
             }
         }
 
-        // Password rules:
-        // - min 12 chars
-        // - at least one lowercase, one uppercase, one digit, one special char
-        // NOTE: le "caractère spécial" est ici défini comme tout caractère non alphanumérique ASCII.
-        // Si tu veux limiter à un set précis, remplace le dernier Regex par un set whitelist.
         $passwordViolations = $validator->validate($plain, [
             new Assert\NotBlank(message: 'Password is required.'),
             new Assert\Length(min: 12, minMessage: 'Password must be at least 12 characters long.'),
             new Assert\Regex(pattern: '/[a-z]/', message: 'Password must contain at least one lowercase letter.'),
             new Assert\Regex(pattern: '/[A-Z]/', message: 'Password must contain at least one uppercase letter.'),
-            new Assert\Regex(pattern: '/\d/',   message: 'Password must contain at least one digit.'),
-            // Variante stricte ASCII punctuation (exclut les lettres accentuées) :
-            // new Assert\Regex(pattern: '/[!@#$%^&*()_\-+=[\]{};:\'",.<>\/?\\|`~]/', message: 'Password must contain at least one special character.')
+            new Assert\Regex(pattern: '/\d/', message: 'Password must contain at least one digit.'),
             new Assert\Regex(pattern: '/[^A-Za-z0-9]/', message: 'Password must contain at least one special character.'),
         ]);
         if (count($passwordViolations)) {
@@ -72,11 +67,19 @@ class AuthController extends AbstractController
         }
 
         if ($violations) {
-            // Tu peux passer à 422 si tu préfères "Unprocessable Entity"
             return $this->json(['error' => implode(' ', $violations)], 400);
         }
 
-        // Unicité email (tu peux faire pareil pour pseudo si nécessaire)
+        [$score, $tips] = $pwdStrength->score($plain, [$email, $pseudo]);
+        if ($score < PasswordStrengthService::MIN_SCORE) {
+            return $this->json([
+                'error' => 'Password too weak.',
+                'score' => $score,
+                'min_score' => PasswordStrengthService::MIN_SCORE,
+                'suggestions' => $tips,
+            ], 422);
+        }
+
         $repo = $em->getRepository(User::class);
         if ($repo->findOneBy(['email' => $email])) {
             return $this->json(['error' => 'Email already used'], 409);
