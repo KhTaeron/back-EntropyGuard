@@ -17,6 +17,8 @@ docker compose up -d
 ### 2. Installer les dépendances
 composer install
 
+Dans php.ini, bien activer les extensions suivantes : openssl, sodium, pgsql, pdo_pgsql
+
 ### 3. Mettre à jour la base
 php bin/console doctrine:migrations:migrate --no-interaction
 
