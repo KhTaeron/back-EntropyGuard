@@ -14,17 +14,20 @@ Application **Symfony** connectée à une base **PostgreSQL** via Docker Compose
 docker compose up -d
 
 
-### 2. Installer les dépendances
+### 2. Générer les clés JWT
+RUN Les commandes : 
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\generate-jwt-keys.ps1
+
+### 3. Installer les dépendances
 composer install
 
-### 3. Mettre à jour la base
+### 4. Mettre à jour la base
 php bin/console doctrine:migrations:migrate --no-interaction
 
-### 4. Lancer le serveur symfony 
+### 5. Lancer le serveur symfony 
 symfony serve -d
 
-### 5. Arrêter la base
-docker compose down
 
 ---
 
